@@ -170,11 +170,11 @@ def main(use_gray_model=True):
     if use_gray_model:
         model = resnet18_gray(num_classes)
         optimizer = optim.Adam(model.parameters(), lr=0.01)
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
     else:
         model = resnet18_rgb(num_classes)
         optimizer = optim.Adam(model.parameters(), lr=0.01)
-        criterion = nn.CrossEntropyLoss()
+        criterion = nn.CrossEntropyLoss(weight=class_weights)
 
 
     model.to(device)
