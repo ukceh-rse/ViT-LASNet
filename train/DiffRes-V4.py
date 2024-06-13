@@ -26,13 +26,19 @@ class SimpleDiffusionModel(nn.Module):
         self.noise_level = noise_level
         self.denoising_net = Unet(dim=32, dim_mults=(1, 2, 4)).to(device)  # Smaller network
 
-    def forward(self, x):
-        noise = torch.randn_like(x) * self.noise_level
+    # def forward(self, x):
+    #     noise = torch.randn_like(x) * self.noise_level
+    #     noisy_img = x + noise
+    #     return noisy_img
+    def forward(self, x, t):
+        # Simulate adding noise progressively based on the timestep
+        noise_scale = torch.sqrt(1.0 - torch.exp(-t * 0.01))  # Example noise scale formula
+        noise = torch.randn_like(x) * noise_scale
         noisy_img = x + noise
         return noisy_img
 
-    def denoise(self, noisy_img, time):
-        denoised_img = noisy_img - self.denoising_net(noisy_img, time)
+    def denoise(self, noisy_img, t):
+        denoised_img = noisy_img - self.denoising_net(noisy_img, t)
         return denoised_img
 
 # Define the Modified ResNet
@@ -52,12 +58,26 @@ class CombinedModel(nn.Module):
         self.diffusion_model = diffusion_model
         self.classification_model = classification_model
 
+    # def forward(self, x):
+    #     time_steps = torch.randint(0, 500, (x.size(0),), device=x.device).long()  # Reduced time steps
+    #     noisy_img = self.diffusion_model(x)
+    #     denoised_img = self.diffusion_model.denoise(noisy_img, time_steps)
+    #     out = self.classification_model(denoised_img)
+    #     return out
+
     def forward(self, x):
-        time_steps = torch.randint(0, 500, (x.size(0),), device=x.device).long()  # Reduced time steps
-        noisy_img = self.diffusion_model(x)
-        denoised_img = self.diffusion_model.denoise(noisy_img, time_steps)
-        out = self.classification_model(denoised_img)
+        num_timesteps = 50  # Define the number of timesteps for the diffusion process
+        time_steps = torch.linspace(0, 1, num_timesteps, device=x.device)  # Linearly spaced timesteps
+
+        # Apply noise and denoise iteratively
+        for t in time_steps:
+            x = self.diffusion_model.forward(x, t)
+            x = self.diffusion_model.denoise(x, t)
+
+        # After diffusion process, classify the denoised image
+        out = self.classification_model(x)
         return out
+
 
 # Data transforms with augmentation
 train_transform = transforms.Compose([
