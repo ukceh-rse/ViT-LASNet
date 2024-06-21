@@ -29,6 +29,10 @@ transform = transforms.Compose([
 
 # Load datasets
 full_train_dataset = datasets.ImageFolder(train_dir, transform=transform)
+class_counts = torch.tensor([full_train_dataset.targets.count(i) for i in range(3)])
+class_weights = 1. / class_counts.float()
+class_weights = class_weights / class_weights.sum() * 3  # Normalize to sum to number of classes
+class_weights = class_weights.to(device)
 
 # Calculate the number of samples for training and validation
 num_train = int(0.9 * len(full_train_dataset))
@@ -51,7 +55,7 @@ def train_and_validate(learning_rate, num_epochs):
 
     # Optimizer and loss
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    loss_fn = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss(weight=class_weights)
 
     best_val_accuracy = 0
 
