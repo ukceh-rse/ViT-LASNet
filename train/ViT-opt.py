@@ -4,6 +4,7 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
 from transformers import ViTForImageClassification
 from tqdm import tqdm
+import os
 import wandb
 
 # Initialize Weights & Biases (optional, for logging)
@@ -45,11 +46,12 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size,num_workers=num_workers, shuffle=False)
 
 # Hyperparameter grid
-learning_rates = [1e-4, 5e-5, 1e-5]
-num_epochs_options = [5, 10, 15]
+learning_rates = [1e-4, 5e-5]
+num_epochs_options = [10, 15]
 
-# Function to train and validate the model
-def train_and_validate(learning_rate, num_epochs):
+
+
+def train_and_validate(learning_rate, num_epochs, save_path):
     # Load the model
     model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224", num_labels=3, ignore_mismatched_sizes=True).to(device)
 
@@ -58,6 +60,7 @@ def train_and_validate(learning_rate, num_epochs):
     loss_fn = nn.CrossEntropyLoss(weight=class_weights)
 
     best_val_accuracy = 0
+    best_model = None
 
     for epoch in range(num_epochs):
         model.train()
@@ -91,31 +94,34 @@ def train_and_validate(learning_rate, num_epochs):
         val_accuracy = val_correct / len(val_dataset)
         if val_accuracy > best_val_accuracy:
             best_val_accuracy = val_accuracy
+            # best_model = model.state_dict()
+            best_model_state = model.state_dict()
 
-        # Logging
-        # wandb.log({
-        #     'Learning Rate': learning_rate,
-        #     'Epoch': epoch + 1,
-        #     'Train Loss': train_loss / len(train_loader),
-        #     'Train Accuracy': train_correct / len(train_dataset),
-        #     'Val Loss': val_loss / len(val_loader),
-        #     'Val Accuracy': val_accuracy
-        # })
+            # Save using torch.save
+            model_path = os.path.join(save_path, "vit_finetuned-24-jun.pt")
+            torch.save(best_model_state, model_path)
+
+            # Save using save_pretrained
+            model.load_state_dict(best_model_state)
+            model.save_pretrained(save_path)
+
+        # Optional: Add wandb logging here
 
     return best_val_accuracy
 
-# Perform grid search
+# Ensure the directory exists or create it
+save_path = '/noc/users/noueft/Documents/Code/PIDiff/DiffRes-PI/opt-ViT/model_weight'
+os.makedirs(save_path, exist_ok=True)
+
+# Use the modified function in your grid search
 best_hyperparams = None
 best_accuracy = 0
 
 for lr in learning_rates:
     for epochs in num_epochs_options:
-        # wandb.config.update({"learning_rate": lr, "num_epochs": epochs}, allow_val_change=True)
-        accuracy = train_and_validate(lr, epochs)
+        accuracy = train_and_validate(lr, epochs, save_path)
         if accuracy > best_accuracy:
             best_accuracy = accuracy
             best_hyperparams = (lr, epochs)
 
 print(f"Best hyperparameters: Learning Rate = {best_hyperparams[0]}, Num Epochs = {best_hyperparams[1]}, Accuracy = {best_accuracy}")
-
-# wandb.finish()
