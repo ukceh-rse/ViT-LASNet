@@ -41,10 +41,10 @@ def create_radar_chart(df, class_name):
     ax.set_title(f'Radar Chart for {class_name.capitalize()}')
     ax.legend(loc='upper right', bbox_to_anchor=(1.3, 1.0))
 
-    # plt.show()
+    plt.show()
 
 
-folder_path = r'/Users/neftekhari/Documents/EDA-elastic-eggs-results/classification_reports'
+folder_path = r'/Users/neftekhari/Desktop/Corrected-dataset/evaluation/classification-report'
 np.random.seed(42)
 # Read CSV files and create the combined DataFrame
 df = read_csv_files(folder_path)

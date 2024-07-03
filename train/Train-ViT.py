@@ -2,7 +2,7 @@ import torch
 from torch import nn, optim
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader, random_split
-from transformers import ViTForImageClassification
+from transformers import ViTForImageClassification, AutoImageProcessor
 from tqdm import tqdm
 import os
 import wandb
@@ -43,21 +43,36 @@ num_val = len(full_train_dataset) - num_train
 train_dataset, val_dataset = random_split(full_train_dataset, [num_train, num_val])
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=batch_size,num_workers=num_workers, shuffle=False)
+val_loader = DataLoader(val_dataset, batch_size=batch_size, num_workers=num_workers, shuffle=False)
 
 # Hyperparameter grid
-learning_rates = [1e-4, 5e-5]
-num_epochs_options = [10, 15]
+# learning_rates = [1e-4, 5e-5]
+# num_epochs_options = [10, 15]
+learning_rates = [0.0001,5e-5]
+num_epochs_options = [15,20]
+# Function to get the loss function based on the selected flag
+def get_loss_function(loss_type, class_weights):
+    if loss_type == 'weighted':
+        return nn.CrossEntropyLoss(weight=class_weights)
+    elif loss_type == 'balanced_binary':
+        return nn.BCEWithLogitsLoss(pos_weight=class_weights)
+    elif loss_type == 'balanced_cross_entropy':
+        beta = class_weights[0] / (class_weights[0] + class_weights[1] + class_weights[2])
+        return nn.CrossEntropyLoss(weight=torch.tensor([beta, (1 - beta) / 2, (1 - beta) / 2]).to(device))
+    else:  # standard cross entropy
+        return nn.CrossEntropyLoss()
 
-
-
-def train_and_validate(learning_rate, num_epochs, save_path):
+def train_and_validate(learning_rate, num_epochs, save_path, loss_type):
     # Load the model
-    model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224", num_labels=3, ignore_mismatched_sizes=True).to(device)
+    image_processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+    model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224", num_labels=3,
+                                                      ignore_mismatched_sizes=True).to(device)
+
+    # model = ViTForImageClassification.from_pretrained("google/vit-base-patch16-224", num_labels=3, ignore_mismatched_sizes=True).to(device)
 
     # Optimizer and loss
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    loss_fn = nn.CrossEntropyLoss(weight=class_weights)
+    loss_fn = get_loss_function(loss_type, class_weights)
 
     best_val_accuracy = 0
     best_model = None
@@ -110,18 +125,21 @@ def train_and_validate(learning_rate, num_epochs, save_path):
     return best_val_accuracy
 
 # Ensure the directory exists or create it
-save_path = '/noc/users/noueft/Documents/Code/PIDiff/DiffRes-PI/opt-ViT/Train-ViT'
+save_path = '/noc/users/noueft/Documents/Code/PIDiff/DiffRes-PI/opt-ViT/Loss-functions/model_weight'
 os.makedirs(save_path, exist_ok=True)
 
 # Use the modified function in your grid search
 best_hyperparams = None
 best_accuracy = 0
 
-for lr in learning_rates:
-    for epochs in num_epochs_options:
-        accuracy = train_and_validate(lr, epochs, save_path)
-        if accuracy > best_accuracy:
-            best_accuracy = accuracy
-            best_hyperparams = (lr, epochs)
+loss_type_options = ['weighted', 'balanced_binary', 'balanced_cross_entropy', 'standard']
 
-print(f"Best hyperparameters: Learning Rate = {best_hyperparams[0]}, Num Epochs = {best_hyperparams[1]}, Accuracy = {best_accuracy}")
+for loss_type in loss_type_options:
+    for lr in learning_rates:
+        for epochs in num_epochs_options:
+            accuracy = train_and_validate(lr, epochs, save_path, loss_type)
+            if accuracy > best_accuracy:
+                best_accuracy = accuracy
+                best_hyperparams = (lr, epochs, loss_type)
+
+print(f"Best hyperparameters: Learning Rate = {best_hyperparams[0]}, Num Epochs = {best_hyperparams[1]}, Loss Type = {best_hyperparams[2]}, Accuracy = {best_accuracy}")
