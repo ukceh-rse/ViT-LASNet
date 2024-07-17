@@ -44,7 +44,7 @@ def resnet18_gray(num_classes):
 def vit_model(device):
     processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
     model = ViTForImageClassification.from_pretrained(
-        "/Users/neftekhari/PycharmProjects/PiDiffResNet/saved_models/ViT-opt"
+        "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/ViT/model_weight/vit_finetuned_MiSLAS_vit_lr5e-05_epochs20"
     ).to(device)
     model.eval()
     return model, processor
@@ -52,7 +52,7 @@ def vit_model(device):
 def beit_model(device):
     processor = BeitImageProcessor.from_pretrained("microsoft/beit-base-patch16-224-pt22k-ft22k")
     model = BeitForImageClassification.from_pretrained(
-        "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/train/model_weight/beit_finetuned_BCE_lr5e-05_epochs30"
+        "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/Beit/model_weight/beit_finetuned_MiSLAS_lr5e-05_epochs30"
     ).to(device)
     model.eval()
     return model, processor
@@ -170,7 +170,7 @@ if __name__ == "__main__":
             batch_results = classify_batch(batch_images, device, model, processor, args.gray, args.batch_size)
             results.extend(batch_results)
 
-        output_csv_file = "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/Beit/test-result/Beit-BCE-5e-05-30.csv"
+        output_csv_file = "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/ViT/output/vit-MiSLAS-vit-5e-05-30.csv"
         with open(output_csv_file, "w", newline="") as csvfile:
             fieldnames = ["Filename", "Predicted Class"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
