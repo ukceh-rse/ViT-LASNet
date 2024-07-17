@@ -19,14 +19,12 @@ import csv
 
 # Suppress the warning
 warnings.filterwarnings("ignore", category=InsecureRequestWarning)
+seed = 42
+np.random.seed(seed)
 
 
 # Define paths
-# data_dir = "/Users/neftekhari/Documents/elastic-eggs-dataset/elastic-eggs-three-class"
-# data_dir = "/Users/neftekhari/Documents/DSG/old-data-set/train"
-# save_path = "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/Elastic eggs project/EDA-elastic-eggs-results/test"
-# data_dir = "/Users/neftekhari/Documents/elastic-eggs-dataset/test-dataset/test"
-# save_path = "/Users/neftekhari/Documents/elastic-eggs-dataset/test-dataset"
+
 data_dir = "/Users/neftekhari/Desktop/Corrected-dataset/main/nice-nephrop"
 save_path = "/Users/neftekhari/Desktop/Corrected-dataset/EDA"
 
@@ -60,15 +58,15 @@ print("Mean Class Count:", mean_class_count)
 print("Median Class Count:", median_class_count)
 
 # # Create and save class table
-# table_data = [["Class Name", "Number of Images"]] + class_data
-# fig, ax = plt.subplots(figsize=(8, 4))
-# ax.axis('off')
-# table = ax.table(cellText=table_data, loc='center', cellLoc='center', cellColours=[['lightgray'] * 2] + [['white', 'white']] * len(class_data), colLabels=None)
-# table.auto_set_font_size(False)
-# table.set_fontsize(10)
-# table.scale(1, 2)
-# table_image_path = os.path.join(save_path, "table.png")
-# plt.savefig(table_image_path, bbox_inches='tight', pad_inches=0.2)
+table_data = [["Class Name", "Number of Images"]] + class_data
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.axis('off')
+table = ax.table(cellText=table_data, loc='center', cellLoc='center', cellColours=[['lightgray'] * 2] + [['white', 'white']] * len(class_data), colLabels=None)
+table.auto_set_font_size(False)
+table.set_fontsize(10)
+table.scale(1, 2)
+table_image_path = os.path.join(save_path, "table.png")
+plt.savefig(table_image_path, bbox_inches='tight', pad_inches=0.2)
 
 table_data = [["Class Name", "Number of Images"]] + class_data
 
@@ -101,8 +99,8 @@ def image_batch_generator(batch_size, class_names):
 
 # Dimensionality Reduction and Visualization (PCA and t-SNE)
 batch_size = 100
-# pca = PCA(n_components=2)
-# pca_result = np.empty((0, 2))
+pca = PCA(n_components=2)
+pca_result = np.empty((0, 2))
 # tsne_3D = TSNE(n_components=3, random_state=0)
 tsne = TSNE(n_components=2, perplexity=15, n_iter=250)
 tsne_result = np.empty((0, 2))
@@ -112,8 +110,8 @@ tsne_result = np.empty((0, 2))
 all_labels = []  # Collect all labels
 
 for X_batch, labels_batch in image_batch_generator(batch_size, class_names):
-    # pca_result_batch = pca.fit_transform(X_batch)
-    # pca_result = np.concatenate((pca_result, pca_result_batch))
+    pca_result_batch = pca.fit_transform(X_batch)
+    pca_result = np.concatenate((pca_result, pca_result_batch))
 
     tsne_result_batch = tsne.fit_transform(X_batch)
     tsne_result = np.concatenate((tsne_result, tsne_result_batch))
