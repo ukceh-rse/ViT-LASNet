@@ -187,6 +187,74 @@ class MiSLAS_loss(nn.Module):
         return loss.mean()
 
 
+class MiSLAS_vit_loss(nn.Module):
+    '''
+        Paper: Improving Calibration for Long-Tailed Recognition
+        Code: https://github.com/Jia-Research-Lab/MiSLAS
+    '''
+    def __init__(self, args, shape='concave', power=None, use_attention=True):
+        super(MiSLAS_vit_loss, self).__init__()
+        self.use_attention = use_attention
+        cls_num_list = args.cls_num
+        n_1 = max(cls_num_list)
+        n_K = min(cls_num_list)
+        smooth_head = 0.3
+        smooth_tail = 0.0
+
+        if shape == 'concave':
+            self.smooth = smooth_tail + (smooth_head - smooth_tail) * np.sin((np.array(cls_num_list) - n_K) * np.pi / (2 * (n_1 - n_K)))
+        elif shape == 'linear':
+            self.smooth = smooth_tail + (smooth_head - smooth_tail) * (np.array(cls_num_list) - n_K) / (n_1 - n_K)
+        elif shape == 'convex':
+            self.smooth = smooth_head + (smooth_head - smooth_tail) * np.sin(1.5 * np.pi + (np.array(cls_num_list) - n_K) * np.pi / (2 * (n_1 - n_K)))
+        elif shape == 'exp' and power is not None:
+            self.smooth = smooth_tail + (smooth_head - smooth_tail) * np.power((np.array(cls_num_list) - n_K) / (n_1 - n_K), power)
+
+        self.smooth = torch.from_numpy(self.smooth)
+        self.smooth = self.smooth.float()
+
+    def forward_oneway(self, x, target, attention_scores=None):
+        smooth = self.smooth.to(x.device)
+        if self.use_attention and attention_scores is not None:
+            # Use the attention scores from the last layer and average over heads and tokens
+            attention_scores = attention_scores[-1].mean(dim=1)  # Average over heads: [batch_size, num_tokens, num_tokens]
+            attention_scores = attention_scores.mean(dim=1)      # Average over tokens: [batch_size, num_tokens]
+            attention_weights = attention_scores.gather(dim=-1, index=target.unsqueeze(1))
+            attention_weights = attention_weights.squeeze(1)  # [batch_size]
+            # Broadcast smooth to match batch size
+            smooth = smooth.expand(attention_weights.size(0), -1)  # [batch_size, num_classes]
+            smooth = smooth * attention_weights.unsqueeze(1)       # [batch_size, num_classes]
+        smoothing = smooth.gather(dim=1, index=target.unsqueeze(1)).squeeze(1)
+        confidence = 1. - smoothing
+        logprobs = F.log_softmax(x, dim=-1)
+        nll_loss = -logprobs.gather(dim=-1, index=target.unsqueeze(1))
+        nll_loss = nll_loss.squeeze(1)
+        smooth_loss = -logprobs.mean(dim=-1)
+        loss = confidence * nll_loss + smoothing * smooth_loss
+        return loss
+
+    def forward(self, x, target, attention_scores=None):
+        if target.shape == x.shape: # to match mixup
+            '''
+                x.shape: batch * nClass
+                target: one hot [0, 0, 0, 0.4, 0, 0, 0.6, 0, 0, 0]
+            '''
+            _, idx_ = torch.topk(target, k=2, dim=1, largest=True)
+            i1, i2 = idx_[:,0], idx_[:,1]
+            v1 = target[torch.tensor([i for i in range(x.shape[0])]), i1]
+            v2 = target[torch.tensor([i for i in range(x.shape[0])]), i2]
+            loss_y1 = self.forward_oneway(x, i1, attention_scores)
+            loss_y2 = self.forward_oneway(x, i2, attention_scores)
+            loss = v1.mul(loss_y1) + v2.mul(loss_y2)
+        else:
+            loss = self.forward_oneway(x, target, attention_scores)
+        return loss.mean()
+
+
+
+
+
+
 class LADE_loss(nn.Module):
     '''NOTE can not work with mixup, plz set mixup=0 and cutmix=0
         Paper: Disentangling Label Distribution for Long-tailed Visual Recognition
