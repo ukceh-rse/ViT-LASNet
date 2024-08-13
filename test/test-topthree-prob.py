@@ -59,7 +59,7 @@ def resnet18_gray(num_classes):
 def vit_model(device):
     processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
     model = ViTForImageClassification.from_pretrained(
-        "/Users/neftekhari/Documents/NeurIPS_2024_Workshop_on_Tackling_Climate_Change_with_Machine_Learning/model-weight-18class/vit_finetuned_BCE_lr5e-05_epochs10"
+        "/Users/neftekhari/Documents/NeurIPS_2024_Workshop_on_Tackling_Climate_Change_with_Machine_Learning/model_CL/vit_finetuned_BCE_CL_lr5e-05_epochs20"
     ).to(device)
     model.eval()
     return model, processor
@@ -67,7 +67,7 @@ def vit_model(device):
 def beit_model(device):
     processor = BeitImageProcessor.from_pretrained("microsoft/beit-base-patch16-224-pt22k-ft22k")
     model = BeitForImageClassification.from_pretrained(
-        ""
+        "/Users/neftekhari/Documents/NeurIPS_2024_Workshop_on_Tackling_Climate_Change_with_Machine_Learning/model-weight-18class/beit_finetuned_LDAM_lr5e-05_epochs10"
     ).to(device)
     model.eval()
     return model, processor
@@ -189,7 +189,7 @@ if __name__ == "__main__":
             batch_results = classify_batch(batch_images, device, model, processor, args.gray, args.batch_size)
             results.extend(batch_results)
 
-        output_csv_file = "/Users/neftekhari/Documents/NeurIPS_2024_Workshop_on_Tackling_Climate_Change_with_Machine_Learning/results/ViT-BCE_lr5e-05_epochs10_1.csv"
+        output_csv_file = "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/Document/ViT-BCECL_lr5e-05_epochs20_topthree-2024-05-17-0020.csv"
         with open(output_csv_file, "w", newline="") as csvfile:
             fieldnames = ["Filename", "Top1 Prediction", "Top1 Probability", "Top2 Prediction", "Top2 Probability", "Top3 Prediction", "Top3 Probability"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
