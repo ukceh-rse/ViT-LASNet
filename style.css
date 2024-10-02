@@ -61,8 +61,19 @@ nav ul li a {
 .section p {
     text-align: center;
     font-size: 1.1em;
+    line-height: 1.7;
+    margin-bottom: 20px;
 }
 
+/* Justified Text for Abstract */
+.justify-text {
+    text-align: justify;
+    font-size: 1.1em;
+    line-height: 1.7;
+    margin-bottom: 20px;
+}
+
+/* Image Styles */
 .section img {
     display: block;
     margin: 20px auto;
