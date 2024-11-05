@@ -63,6 +63,7 @@ numpy==1.26.0
 #numpy-base==1.26.0
 #openjpeg==2.3.0
 #openssl==3.0.12
+pandas===2.2.3
 pillow==10.0.1
 pip==23.3
 pycparser==2.21
@@ -79,9 +80,10 @@ setuptools==68.0.0
 #sqlite3==3.41.2
 sympy==1.11.1
 threadpoolctl==2.2.0
-tifffile==2023.4.12
+tiffile==2024.8.30
 #tk==8.6.12
 torchvision==0.20.1
+transformers==4.46.1
 typing-extensions==4.7.1
 typing_extensions==4.7.1
 urllib3==1.26.18
