@@ -12,6 +12,7 @@ from io import BytesIO
 import numpy as np
 import os
 import csv
+logging.basicConfig(level=logging.INFO)
 from transformers import AutoImageProcessor, ViTForImageClassification, BeitImageProcessor, BeitForImageClassification
 
 device = "mps" if torch.backends.mps.is_available() else "cpu"
@@ -41,19 +42,15 @@ def resnet18_gray(num_classes):
     model.fc = torch.nn.Linear(model.fc.in_features, num_classes)
     return model
 
-def vit_model(device):
+def vit_model(model_path, device):
     processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
-    model = ViTForImageClassification.from_pretrained(
-        "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/ViT/model_weight/vit_finetuned_MiSLAS_vit_lr5e-05_epochs20"
-    ).to(device)
+    model = ViTForImageClassification.from_pretrained(model_path).to(device)
     model.eval()
     return model, processor
 
-def beit_model(device):
+def beit_model(model_path, device):
     processor = BeitImageProcessor.from_pretrained("microsoft/beit-base-patch16-224-pt22k-ft22k")
-    model = BeitForImageClassification.from_pretrained(
-        "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/Beit/model_weight/beit_finetuned_MiSLAS_lr5e-05_epochs30"
-    ).to(device)
+    model = BeitForImageClassification.from_pretrained(model_path).to(device)
     model.eval()
     return model, processor
 
@@ -66,9 +63,9 @@ def get_device():
 
 def load_model(filename, device, model_version=0, gray=False):
     if model_version == 3:
-        return beit_model(device)
+        return beit_model(filename, device)
     elif model_version == 2:
-        return vit_model(device)
+        return vit_model(filename, device)
     else:
         if gray:
             model = resnet18_gray(num_classes=len(LABELS))
@@ -84,6 +81,7 @@ def load_model(filename, device, model_version=0, gray=False):
         return model, None
 
 def classify(image, device, model, processor=None, gray=False):
+
     if processor:
         image = Image.open(BytesIO(image))
         inputs = processor(images=image, return_tensors="pt").to(device)
@@ -105,6 +103,7 @@ def classify(image, device, model, processor=None, gray=False):
     return LABELS[preds[0]]
 
 def classify_batch(image_list, device, model, processor=None, gray=False, batch_size=1):
+
     if processor:
         images = [Image.open(BytesIO(image)) for image in image_list]
         inputs = processor(images=images, return_tensors="pt", padding=True).to(device)
@@ -139,20 +138,34 @@ if __name__ == "__main__":
     parser.add_argument("filename", type=str, help="Path to the tiff file or folder you want to classify")
     parser.add_argument("-f", "--folder", action="store_true", help="folder processing")
     parser.add_argument("-b", "--batch_size", type=int, default=1, help="Batch size for processing images")
+    parser.add_argument("-o", "--output_csv", type=str, help="CSV file to save output in")
+    parser.add_argument("-w", "--weights", type=str, help="Optional path to model weights")
 
     args = parser.parse_args()
     device = get_device()
+    weights = args.weights
+    if args.model_version == 2:
+        if not weights:
+            weights = "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/ViT/model_weight/vit_finetuned_MiSLAS_vit_lr5e-05_epochs20"
+        model, processor = load_model(weights, device, model_version=args.model_version)
 
-    if args.model_version in [2, 3]:
-        model, processor = load_model(None, device, model_version=args.model_version)
+    elif args.model_version == 3:
+        if not weights:
+            weights = "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/Beit/model_weight/beit_finetuned_MiSLAS_lr5e-05_epochs30"
+        model, processor = load_model(weights, device, model_version=args.model_version)
+         
     else:
         if args.gray:
             model, processor = load_model("saved_models/resnet18_model_gray_weights_15May.pth", device, gray=True)
         else:
             if args.model_version == 0:
-                model, processor = load_model("model.pth", device)
+                if not weights:
+                    weights = "model.pth"
+                model, processor = load_model(weights, device)
             elif args.model_version == 1:
-                model, processor = load_model("saved_models/combined_model.pth", device, args.model_version)
+                if not weights:
+                    weights =  "saved_models/combined_model.pth"
+                model, processor = load_model(weights, device, args.model_version)
 
     if args.folder:
         image_list = []
@@ -170,7 +183,10 @@ if __name__ == "__main__":
             batch_results = classify_batch(batch_images, device, model, processor, args.gray, args.batch_size)
             results.extend(batch_results)
 
-        output_csv_file = "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/ViT/output/vit-MiSLAS-vit-5e-05-30.csv"
+        output_csv_file = args.output_csv
+        if not output_csv_file:
+            output_csv_file = "/Users/neftekhari/Library/CloudStorage/OneDrive-TheAlanTuringInstitute/model-history-on-corrected-dataset/ViT/output/vit-MiSLAS-vit-5e-05-30.csv"
+
         with open(output_csv_file, "w", newline="") as csvfile:
             fieldnames = ["Filename", "Predicted Class"]
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
