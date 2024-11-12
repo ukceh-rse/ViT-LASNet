@@ -16,13 +16,34 @@ logging.basicConfig(level=logging.INFO)
 from transformers import AutoImageProcessor, ViTForImageClassification, BeitImageProcessor, BeitForImageClassification
 
 device = "mps" if torch.backends.mps.is_available() else "cpu"
-print(f"Using device: {device}")
+logging.info(f"Using device: {device}")
 
-LABELS = [
+CLASS_LABELS = { 3 : [
     "copepod",
     "detritus",
     "noncopepod",
+],
+    18 : [
+    "Detritus",
+    "Phyto_diatom",
+    "Phyto_diatom_chaetocerotanae_Chaetoceros",
+    "Phyto_diatom_rhisoleniales_Guinardia flaccida",
+    "Phyto_diatom_rhisoleniales_Rhizosolenia",
+    "Phyto_dinoflagellate_gonyaulacales_Tripos",
+    "Phyto_dinoflagellate_gonyaulacales_Tripos macroceros",
+    "Phyto_dinoflagellate_gonyaulacales_Tripos muelleri",
+    "Zoo_cnidaria",
+    "Zoo_crustacea_copepod",
+    "Zoo_crustacea_copepod_calanoida",
+    "Zoo_crustacea_copepod_calanoida_Acartia",
+    "Zoo_crustacea_copepod_calanoida_Centropages",
+    "Zoo_crustacea_copepod_cyclopoida",
+    "Zoo_crustacea_copepod_cyclopoida_Oithona",
+    "Zoo_crustacea_copepod_nauplii",
+    "Zoo_other",
+    "Zoo_tintinnidae"
 ]
+}
 
 def resnet50(num_classes):
     model = torchvision.models.resnet50()
@@ -140,9 +161,18 @@ if __name__ == "__main__":
     parser.add_argument("-b", "--batch_size", type=int, default=1, help="Batch size for processing images")
     parser.add_argument("-o", "--output_csv", type=str, help="CSV file to save output in")
     parser.add_argument("-w", "--weights", type=str, help="Optional path to model weights")
+    parser.add_argument("-n", "--num_classes", type=int, default="3", help="Optional number of class labels (default 3)")
+
 
     args = parser.parse_args()
     device = get_device()
+
+    num_classes = args.num_classes
+    try:
+        LABELS = CLASS_LABELS[num_classes]
+    except IndexError:
+        raise(f"Can't find a set of {num_classes} labels")
+
     weights = args.weights
     if args.model_version == 2:
         if not weights:
@@ -193,7 +223,7 @@ if __name__ == "__main__":
             writer.writeheader()
             for i in range(len(filenames_list)):
                 writer.writerow({"Filename": filenames_list[i], "Predicted Class": results[i]})
-        print(f"Results saved to {output_csv_file}")
+        logging.info(f"Results saved to {output_csv_file}")
 
     else:
         with open(args.filename, "rb") as file:
@@ -205,4 +235,4 @@ if __name__ == "__main__":
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writeheader()
                 writer.writerow({"Filename": args.filename, "Predicted Class": result})
-            print(f"Result saved to {output_csv_file}")
+            logging.info(f"Result saved to {output_csv_file}")
